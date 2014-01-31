@@ -1,8 +1,11 @@
+#define WIN32_LEAN_AND_MEAN
+#define WIN32_EXTRA_LEAN
+
 #include <windows.h>
 #include <stdio.h>
 
-#define DI_OK 5
 #define E_FAIL 0x80004005
+#define DI_OK 5
 
 /* Global variables */
 HINSTANCE self_handle;
