@@ -1,0 +1,22 @@
+#define DATE 2013,07,28
+#include "inject_date.rc"
+
+1 VERSIONINFO
+FILEVERSION DATE,1337
+PRODUCTVERSION DATE,1337
+FILEOS 0xA
+FILETYPE 0x2
+{
+BLOCK "StringFileInfo"
+{
+	BLOCK "0800FDE9"
+	{
+		VALUE "FileDescription", "—Iron Launcher—"
+		VALUE     "CompanyName", "created by Swyter"
+	}
+}
+BLOCK "VarFileInfo"
+{
+	VALUE "Translation", 0x0800, 0xFDE9
+}
+}
