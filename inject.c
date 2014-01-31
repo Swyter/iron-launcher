@@ -1,39 +1,36 @@
 #include <windows.h>
 #include <stdio.h>
 
+#define DI_OK 5
 #define E_FAIL 0x80004005
 
 /* Global variables */
 HINSTANCE self_handle;
 HINSTANCE orig_handle;
+FARPROC   orig_pointer;
 
 char orig_path[MAX_PATH];
 
 
 int __stdcall DirectInput8Create(int a1, int a2, int a3, int a4, int a5)
 {
-  int result; // eax@3
-  FARPROC v6; // [sp+0h] [bp-114h]@2
-  char v8; // [sp+5h] [bp-10Fh]@1
-  unsigned int v9; // [sp+10Ch] [bp-8h]@1
-  HMODULE hModule; // [sp+110h] [bp-4h]@1
-  int v11; // [sp+114h] [bp+0h]@1
+  int result;
+  
+  /* Find out where %windir%\\system32 is and append the real DLL filename */
+  GetSystemDirectoryA(&orig_path, MAX_PATH); strcat(&orig_path, "\\dinput8.dll");
 
-  GetSystemDirectoryA(&orig_path, 0x104u); strcat(&orig_path, "\\dinput8.dll");
-
-  orig_handle = LoadLibraryA(&orig_path);
+  /* Get the native function and proxy it */
+  orig_handle  = LoadLibraryA(&orig_path);
   
-  
-  
-  if (orig_handle && (v6 = GetProcAddress(orig_handle, "DirectInput8Create")) != 0 )
-    result = ((int (__stdcall *)(int, int, int, int, int))v6)(a1, a2, a3, a4, a5);
+  if (orig_handle && (orig_pointer = GetProcAddress(orig_handle, "DirectInput8Create")) != 0 )
+    result = ((int (__stdcall *)(int, int, int, int, int))orig_pointer)(a1, a2, a3, a4, a5);
     
   else
     result = E_FAIL;
     
-    
-  char msg[MAX_PATH]; sprintf(msg,"hola: %x/%x/%x/%x/%p/%x/  %p/%p  %x",
-                              result, a1, a2, a3, a4, a4, v6, orig_handle, self_handle);
+  /* Print a debug messagebox with call-related info */
+  char msg[MAX_PATH]; sprintf(msg,"info: %x/%x/%x/%x/%p/%x/  %p/%p  %x",
+                              result, a1, a2, a3, a4, a4, orig_pointer, orig_handle, self_handle);
   
   MessageBoxA(0, msg, orig_path, 0);
 
