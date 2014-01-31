@@ -1,0 +1,3 @@
+syntax: glob
+inject.rc.o
+inject_date.rc
