@@ -4,6 +4,8 @@
 #include <windows.h>
 #include <stdio.h>
 
+#include "inject_log_helper.h"
+
 #ifndef E_FAIL
 #define E_FAIL 0x80004005
 #endif
@@ -70,13 +72,14 @@ BOOL __stdcall DllMain(
       GetModuleFileName(self_handle, &self_path, MAX_PATH);
       
       /* Print a debug messagebox with parent-related info */
-      char msg[80]; sprintf(msg,"parent exe path: %s \n"
-                                "parent exe handle: %p \n"
-                                "dll self handle: %p \n"
-                                "dll self path: %s \n"
-                                "-- \n"
-                                "curr mod name: %s", parent_path, parent_handle, self_handle, self_path, get_current_mod_name() );
-      MessageBoxA(0, msg, orig_path, 0);
+      char msg[MAX_PATH]; sprintf(msg,"parent exe path: %s \n"
+                                      "parent exe handle: %p \n"
+                                      "dll self handle: %p \n"
+                                      "dll self path: %s \n"
+                                      "-- \n"
+                                      "curr mod name: %s", parent_path, parent_handle, self_handle, self_path, get_current_mod_name() );
+      // MessageBoxA(0, msg, orig_path, 0);
+      il_log(INFO, msg);
       break;
 
     /* If the process ask for unloading */
@@ -93,41 +96,37 @@ BOOL __stdcall DllMain(
 
 char *get_current_mod_name(void)
 {
-  static char mod_name[40] = "Random stuff";
-  HKEY keyThingie;
+  static char mod_name[MAX_PATH] = "Random stuff";
+  HKEY key_thingie;
   
   // some undefined constants in TinyCC's headers
   #define KEY_WOW64_64KEY 0x0100
   #define KEY_WOW64_32KEY 0x0200
   
-  RegOpenKeyEx(
+  HRESULT lResult = RegOpenKeyEx(
     HKEY_CURRENT_USER,
    "Software\\MountAndBladeKeys",
     0,
     KEY_READ|KEY_WOW64_32KEY,
-    &keyThingie
+    &key_thingie
   );
     
-  if(keyThingie == S_OK)
+  if(lResult == ERROR_SUCCESS)
   {
-    long ret = RegQueryValueEx(
-        keyThingie,
+  
+    DWORD ktype = REG_SZ, ksize = sizeof(mod_name);
+  
+    RegQueryValueEx(
+        key_thingie,
        "last_module",
-        0,
-        0,
-        mod_name,
-        40
+        NULL,
+       &ktype,
+       &mod_name,
+       &ksize
     );
-    char error[80];
-    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,0,ret,0,error,sizeof(error),0);
-      
-    /* Print a debug messagebox with call-related info */
-    char msg[80]; sprintf(msg,"reg: %x %x %s %s", keyThingie, ret, error, mod_name);
     
-    MessageBoxA(0, msg, msg, 0);
-    
-    RegCloseKey(keyThingie);
-  }
+    RegCloseKey(key_thingie);
+   }
     
   return (char*)mod_name;
 }
