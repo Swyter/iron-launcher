@@ -12,7 +12,7 @@ BLOCK "StringFileInfo"
 	BLOCK "0800FDE9"
 	{
 		VALUE "FileDescription", "—Iron Launcher—"
-		VALUE     "CompanyName", "created by Swyter"
+		VALUE     "CompanyName", "Created by Swyter"
 	}
 }
 BLOCK "VarFileInfo"
