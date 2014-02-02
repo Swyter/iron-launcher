@@ -260,6 +260,8 @@ void il_configure_hooks(void)
   }
   #endif
   
+  
+  il_log(INFO, "thread ended, now wait for the hooked calls...");
   return 1;
 
 }
