@@ -20,6 +20,24 @@ char orig_path[MAX_PATH];
 
 char *get_current_mod_name(void);
 
+
+BOOL __stdcall il_ReadFile(
+  HANDLE hFile,
+  LPVOID lpBuffer,
+  DWORD nNumberOfBytesToRead,
+  LPDWORD lpNumberOfBytesRead,
+  LPOVERLAPPED lpOverlapped
+)
+{
+  char cosa[500]; sprintf(cosa,"ReadFile called! (hFile=%x,lpBuffer=%x,nNumberOfBytesToRead=%x,lpNumberOfBytesRead=%x,lpOverlapped=%x)",
+                          hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
+  il_log(WARN,cosa);
+  //MessageBoxA(0, "called!", "match", 0);
+  return ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
+}
+
+
+
 void il_configure_hooks(void)
 {
   il_log(INFO, "thread started");
@@ -44,6 +62,12 @@ void il_configure_hooks(void)
   
   IMAGE_IMPORT_DESCRIPTOR *imp = (PIMAGE_IMPORT_DESCRIPTOR)((BYTE*)dos_header + (nt_header-> OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress));
 
+  if (imp==0)
+  {
+    il_log(ERRO,"looks like the parent exe doesn't have an import table, bailing out...");
+    return;
+  }
+  
   char cosa[50];
   sprintf(cosa,"image base: %x, import virtualaddr: %x first thunk: %x", nt_header-> OptionalHeader.ImageBase, nt_header-> OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress, imp->FirstThunk);
   MessageBoxA(0, cosa, "match", 0);
@@ -67,7 +91,7 @@ void il_configure_hooks(void)
       char *imp_name = "Dummy";
       char ordinal[140];
       
-      if (imp_name_table-> u1.ForwarderString & (1<<31))
+      if (imp_name_table-> u1.ForwarderString & (1<<31)) //IMAGE_ORDINAL_FLAG32
       {
         sprintf(ordinal,"ordinal #%u", imp_name_table-> u1.ForwarderString & ~(1<<31));
         imp_name = &ordinal;
@@ -82,6 +106,20 @@ void il_configure_hooks(void)
       //MessageBoxA(0, cosa, "match", 0);
       
       il_log(INFO, cosa);
+      
+      if(strncmp(imp_name, "ReadFile", 8) == 0)
+      {        
+        sprintf(cosa,"hooking iat p: %p / addr: %x  -- hook addr: %x", imp_addr_table->u1.AddressOfData, imp_addr_table->u1.AddressOfData, il_ReadFile);
+        MessageBoxA(0, cosa, "hooking shit", 0);
+        
+        DWORD oldProtection;
+        if(VirtualProtect(&imp_addr_table->u1.AddressOfData, sizeof(DWORD), PAGE_EXECUTE_READWRITE, &oldProtection))
+        {
+           imp_addr_table->u1.AddressOfData = (DWORD)il_ReadFile;
+           il_log(WARN,"       API function hooked!");
+        }
+        
+      }
 
       imp_name_table++;
       imp_addr_table++;
