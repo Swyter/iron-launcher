@@ -32,9 +32,47 @@ HANDLE __stdcall il_CreateFile(
 )
 {
 
-  char cosa[500]; sprintf(cosa,"CreateFile called! (lpFileName=%s,dwDesiredAccess=%x,dwShareMode=%x)",
-                          lpFileName, dwDesiredAccess, dwShareMode);
-  il_log(WARN,cosa);
+  //char cosa[500]; sprintf(cosa,"CreateFile called! (lpFileName=%s,dwDesiredAccess=%x,dwShareMode=%x)",
+  //                        lpFileName, dwDesiredAccess, dwShareMode);
+  //il_log(WARN,cosa);
+  
+  // static const char search_locations[7] =
+  // {
+    // { "Data\\font_data.xml",           "module\\%s\\data\font_data.xml"       },
+    // { "CommonRes\\core_shaders.brf",   "module\\%s\\data\\core_shaders.brf"   },
+    // { "CommonRes\\core_textures.brf",  "module\\%s\\data\\core_textures.brf"  },
+    // { "CommonRes\\core_materials.brf", "module\\%s\\data\\core_materials.brf" },
+    // { "CommonRes\\core_ui_meshes.brf", "module\\%s\\data\\core_ui_meshes.brf" },
+    // { "CommonRes\\core_pictures.brf",  "module\\%s\\data\\core_pictures.brf"  },
+    // { NULL, NULL }
+  // };
+  
+  // char *p = search_locations[0][0];
+  
+  
+  // int i;
+  // for(i=0;i<sizeof(search_locations);i++)
+  // { 
+    // if(strcmp(lpFileName,seach_locations[i][0])==0)
+    // {
+      // char modded[300];
+      // sprintf(modded, search_location[i][1], get_current_mod_name());
+      // il_log(ERRO, "Found modular replacement match! as follows:");
+      // il_log(ERRO, modded);
+    // }
+  // }
+  
+  if(strcmp(lpFileName,"Data\\font_data.xml")==0)
+  {
+    lpFileName = "modules\\tld-svn\\Data\\font_data.xml";
+  }
+  
+  if(strcmp(lpFileName,"CommonRes\\core_shaders.brf")==0)
+  {
+    lpFileName = "modules\\tld-svn\\Data\\core_shaders.brf";
+  }
+  
+  
 
   return CreateFile(
             lpFileName,
@@ -55,9 +93,9 @@ BOOL __stdcall il_ReadFile(
   LPOVERLAPPED lpOverlapped
 )
 {
-  char cosa[500]; sprintf(cosa,"ReadFile called! (hFile=%x,lpBuffer=%x,nNumberOfBytesToRead=%x,lpNumberOfBytesRead=%x,lpOverlapped=%x)",
-                          hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
-  il_log(WARN,cosa);
+  //char cosa[500]; sprintf(cosa,"ReadFile called! (hFile=%x,lpBuffer=%x,nNumberOfBytesToRead=%x,lpNumberOfBytesRead=%x,lpOverlapped=%x)",
+  //                        hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
+  //il_log(WARN,cosa);
   //MessageBoxA(0, "called!", "match", 0);
   return ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
 }
@@ -94,18 +132,18 @@ void il_configure_hooks(void)
     return;
   }
   
-  char cosa[50];
-  sprintf(cosa,"image base: %x, import virtualaddr: %x first thunk: %x", nt_header-> OptionalHeader.ImageBase, nt_header-> OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress, imp->FirstThunk);
-  MessageBoxA(0, cosa, "match", 0);
+  //char cosa[50];
+  //sprintf(cosa,"image base: %x, import virtualaddr: %x first thunk: %x", nt_header-> OptionalHeader.ImageBase, nt_header-> OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress, imp->FirstThunk);
+  //MessageBoxA(0, cosa, "match", 0);
 
   while(1)
   {
     if (imp->OriginalFirstThunk == 0) break;
     
-    sprintf(cosa,"import name: %s, first thunk: %x", (BYTE*)dos_header + imp->Name, imp->FirstThunk);
+    //sprintf(cosa,"import name: %s, first thunk: %x", (BYTE*)dos_header + imp->Name, imp->FirstThunk);
     //MessageBoxA(0, cosa, "match", 0);
     
-    il_log(INFO, cosa);
+    //il_log(INFO, cosa);
     
     IMAGE_THUNK_DATA *imp_name_table = (PIMAGE_THUNK_DATA)((BYTE*)dos_header + (imp->OriginalFirstThunk));
     IMAGE_THUNK_DATA *imp_addr_table = (PIMAGE_THUNK_DATA)((BYTE*)dos_header + (imp->FirstThunk));
@@ -119,7 +157,7 @@ void il_configure_hooks(void)
       
       if (imp_name_table-> u1.ForwarderString & (1<<31)) //IMAGE_ORDINAL_FLAG32
       {
-        sprintf(ordinal,"ordinal #%u", imp_name_table-> u1.ForwarderString & ~(1<<31));
+        //sprintf(ordinal,"ordinal #%u", imp_name_table-> u1.ForwarderString & ~(1<<31));
         imp_name = &ordinal;
       }
       
@@ -128,35 +166,35 @@ void il_configure_hooks(void)
         imp_name = (BYTE*)dos_header + (imp_name_table-> u1.ForwarderString + 2);
       }
         
-      sprintf(cosa,"  int: %s/%x, iat: %x", imp_name, (int)imp_name_table-> u1.ForwarderString, imp_addr_table-> u1.AddressOfData);
+      //sprintf(cosa,"  int: %s/%x, iat: %x", imp_name, (int)imp_name_table-> u1.ForwarderString, imp_addr_table-> u1.AddressOfData);
       //MessageBoxA(0, cosa, "match", 0);
       
-      il_log(INFO, cosa);
+      //il_log(INFO, cosa);
       
       if(strncmp(imp_name, "ReadFile", 8) == 0)
       {        
-        sprintf(cosa,"readfile | hooking iat p: %p / addr: %x  -- hook addr: %x", imp_addr_table->u1.AddressOfData, imp_addr_table->u1.AddressOfData, il_ReadFile);
-        MessageBoxA(0, cosa, "hooking shit", 0);
+        //sprintf(cosa,"readfile | hooking iat p: %p / addr: %x  -- hook addr: %x", imp_addr_table->u1.AddressOfData, imp_addr_table->u1.AddressOfData, il_ReadFile);
+        //MessageBoxA(0, cosa, "hooking shit", 0);
         
         DWORD oldProtection;
         if(VirtualProtect(&imp_addr_table->u1.AddressOfData, sizeof(DWORD), PAGE_EXECUTE_READWRITE, &oldProtection))
         {
            imp_addr_table->u1.AddressOfData = (DWORD)il_ReadFile;
-           il_log(WARN,"       API function hooked!");
+           //il_log(WARN,"       API function hooked!");
         }
         
       }
       
       if(strncmp(imp_name, "CreateFile", 10) == 0)
       {        
-        sprintf(cosa,"createfile | hooking iat p: %p / addr: %x  -- hook addr: %x", imp_addr_table->u1.AddressOfData, imp_addr_table->u1.AddressOfData, il_ReadFile);
-        MessageBoxA(0, cosa, "hooking shit", 0);
+        //sprintf(cosa,"createfile | hooking iat p: %p / addr: %x  -- hook addr: %x", imp_addr_table->u1.AddressOfData, imp_addr_table->u1.AddressOfData, il_ReadFile);
+        //MessageBoxA(0, cosa, "hooking shit", 0);
         
         DWORD oldProtection;
         if(VirtualProtect(&imp_addr_table->u1.AddressOfData, sizeof(DWORD), PAGE_EXECUTE_READWRITE, &oldProtection))
         {
            imp_addr_table->u1.AddressOfData = (DWORD)il_CreateFile;
-           il_log(WARN,"       API function hooked!");
+           //il_log(WARN,"       API function hooked!");
         }
         
       }
@@ -177,7 +215,7 @@ void il_configure_hooks(void)
   sprintf(buffer,"SkinMagic.dll: %x",handle);
 
   
-  MessageBoxA(0, buffer, "match", 0);
+  //MessageBoxA(0, buffer, "match", 0);
 
   Sleep(2*1000);
 
@@ -276,7 +314,7 @@ BOOL __stdcall DllMain(
                                       "dll self path: %s \n"
                                       "-- \n"
                                       "curr mod name: %s", parent_path, parent_handle, self_handle, self_path, get_current_mod_name() );
-      MessageBoxA(0, msg, orig_path, 0);
+      //MessageBoxA(0, msg, orig_path, 0);
       il_log(INFO, msg);
       
       /* Do the rest of the stuff in a new thread to avoid blocking the entire program */
