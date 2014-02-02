@@ -20,6 +20,126 @@ char orig_path[MAX_PATH];
 
 char *get_current_mod_name(void);
 
+void il_configure_hooks(void)
+{
+  il_log(INFO, "thread started");
+  
+  
+   // IMAGE_DOS_HEADER* pIDH = (IMAGE_DOS_HEADER*)GetModuleHandle( NULL ); 
+   // IMAGE_NT_HEADERS* pINH = (IMAGE_NT_HEADERS*)((BYTE*)pIDH + (pIDH -> e_lfanew)); 
+   // IMAGE_OPTIONAL_HEADER IOH = pINH -> OptionalHeader; 
+  // char coso[4000];
+
+   // sprintf(coso, "Magic number is : %u\n", pIDH -> e_magic ); 
+     // MessageBoxA(0, coso, "match", 0);
+
+   // sprintf(coso, "Address of entry point is : %#x", IOH.AddressOfEntryPoint );  
+   
+  // MessageBoxA(0, coso, "match", 0);
+
+   
+  IMAGE_DOS_HEADER *dos_header = (PIMAGE_DOS_HEADER)GetModuleHandle(NULL); //0x400000;
+  IMAGE_NT_HEADERS *nt_header  = (PIMAGE_NT_HEADERS)((BYTE*)dos_header + (dos_header->e_lfanew));
+  IMAGE_OPTIONAL_HEADER IOH    = nt_header -> OptionalHeader;
+  
+  IMAGE_IMPORT_DESCRIPTOR *imp = (PIMAGE_IMPORT_DESCRIPTOR)((BYTE*)dos_header + (nt_header-> OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress));
+
+  char cosa[50];
+  sprintf(cosa,"image base: %x, import virtualaddr: %x first thunk: %x", nt_header-> OptionalHeader.ImageBase, nt_header-> OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress, imp->FirstThunk);
+  MessageBoxA(0, cosa, "match", 0);
+
+  while(1)
+  {
+    if (imp->OriginalFirstThunk == 0) break;
+    
+    sprintf(cosa,"import name: %s, first thunk: %x", (BYTE*)dos_header + imp->Name, imp->FirstThunk);
+    //MessageBoxA(0, cosa, "match", 0);
+    
+    il_log(INFO, cosa);
+    
+    IMAGE_THUNK_DATA *imp_name_table = (PIMAGE_THUNK_DATA)((BYTE*)dos_header + (imp->OriginalFirstThunk));
+    IMAGE_THUNK_DATA *imp_addr_table = (PIMAGE_THUNK_DATA)((BYTE*)dos_header + (imp->FirstThunk));
+    
+    while(1)
+    {
+      if (imp_name_table-> u1.AddressOfData == 0) break;
+      
+      char *imp_name = "Dummy";
+      char ordinal[140];
+      
+      if (imp_name_table-> u1.ForwarderString & (1<<31))
+      {
+        sprintf(ordinal,"ordinal #%u", imp_name_table-> u1.ForwarderString & ~(1<<31));
+        imp_name = &ordinal;
+      }
+      
+      else
+      {
+        imp_name = (BYTE*)dos_header + (imp_name_table-> u1.ForwarderString + 2);
+      }
+        
+      sprintf(cosa,"  int: %s/%x, iat: %x", imp_name, (int)imp_name_table-> u1.ForwarderString, imp_addr_table-> u1.AddressOfData);
+      //MessageBoxA(0, cosa, "match", 0);
+      
+      il_log(INFO, cosa);
+
+      imp_name_table++;
+      imp_addr_table++;
+    }
+    
+    
+    imp++;
+  }
+  
+  #ifndef TRUE
+  char buffer[50];
+  
+  HMODULE handle = GetModuleHandle("SkinMagic.dll");
+    
+  sprintf(buffer,"SkinMagic.dll: %x",handle);
+
+  
+  MessageBoxA(0, buffer, "match", 0);
+
+  Sleep(2*1000);
+
+  char *p = (char *)0x400000; //0xAFB71D0;
+  while(*p++ < 0xBBBBBBB)
+  { // Version 1.011
+    if(*p == 'V' &&
+       *(p+1) == 'e' &&
+       *(p+2) == 'r' &&
+       *(p+3) == 's' &&
+       *(p+4) == 'i' &&
+       *(p+5) == 'o' &&
+       *(p+6) == 'n' &&
+       *(p+7) == ' ' &&
+       *(p+8) == '1' &&
+       *(p+8) == '.')
+    {
+      il_log(WARN, "LOL TRONQUI");
+      //il_log(INFO, p);
+      
+      strncpy(buffer, p, sizeof(buffer));
+      
+      MessageBoxA(0, buffer, "match", 0);
+
+      //strcpy(p, "hola cara de bola");
+      
+      break;
+    }
+  }
+  #endif
+  // while(1)
+  // {
+    // Sleep(2*1000);
+    // il_log(INFO, "heartbeat! <3");
+  // }
+  
+  return 1;
+
+}
+
 
 int __stdcall DirectInput8Create(int a1, int a2, int a3, int a4, int a5)
 {
@@ -78,8 +198,21 @@ BOOL __stdcall DllMain(
                                       "dll self path: %s \n"
                                       "-- \n"
                                       "curr mod name: %s", parent_path, parent_handle, self_handle, self_path, get_current_mod_name() );
-      // MessageBoxA(0, msg, orig_path, 0);
+      MessageBoxA(0, msg, orig_path, 0);
       il_log(INFO, msg);
+      
+      /* Do the rest of the stuff in a new thread to avoid blocking the entire program */
+      HANDLE threat_id = CreateThread(
+        NULL,
+        0,
+        (LPTHREAD_START_ROUTINE)&il_configure_hooks,
+        NULL,
+        NULL,
+        0//'IL'
+      );
+      
+      SetThreadPriority(threat_id, THREAD_PRIORITY_TIME_CRITICAL);
+      
       break;
 
     /* If the process ask for unloading */
