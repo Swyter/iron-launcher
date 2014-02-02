@@ -21,6 +21,32 @@ char orig_path[MAX_PATH];
 char *get_current_mod_name(void);
 
 
+HANDLE __stdcall il_CreateFile(
+  LPCTSTR lpFileName,
+    DWORD dwDesiredAccess,
+    DWORD dwShareMode,
+  LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+    DWORD dwCreationDisposition,
+    DWORD dwFlagsAndAttributes,
+   HANDLE hTemplateFile
+)
+{
+
+  char cosa[500]; sprintf(cosa,"CreateFile called! (lpFileName=%s,dwDesiredAccess=%x,dwShareMode=%x)",
+                          lpFileName, dwDesiredAccess, dwShareMode);
+  il_log(WARN,cosa);
+
+  return CreateFile(
+            lpFileName,
+            dwDesiredAccess,
+            dwShareMode,
+            lpSecurityAttributes,
+            dwCreationDisposition,
+            dwFlagsAndAttributes,
+            hTemplateFile
+  );
+}
+
 BOOL __stdcall il_ReadFile(
   HANDLE hFile,
   LPVOID lpBuffer,
@@ -109,13 +135,27 @@ void il_configure_hooks(void)
       
       if(strncmp(imp_name, "ReadFile", 8) == 0)
       {        
-        sprintf(cosa,"hooking iat p: %p / addr: %x  -- hook addr: %x", imp_addr_table->u1.AddressOfData, imp_addr_table->u1.AddressOfData, il_ReadFile);
+        sprintf(cosa,"readfile | hooking iat p: %p / addr: %x  -- hook addr: %x", imp_addr_table->u1.AddressOfData, imp_addr_table->u1.AddressOfData, il_ReadFile);
         MessageBoxA(0, cosa, "hooking shit", 0);
         
         DWORD oldProtection;
         if(VirtualProtect(&imp_addr_table->u1.AddressOfData, sizeof(DWORD), PAGE_EXECUTE_READWRITE, &oldProtection))
         {
            imp_addr_table->u1.AddressOfData = (DWORD)il_ReadFile;
+           il_log(WARN,"       API function hooked!");
+        }
+        
+      }
+      
+      if(strncmp(imp_name, "CreateFile", 10) == 0)
+      {        
+        sprintf(cosa,"createfile | hooking iat p: %p / addr: %x  -- hook addr: %x", imp_addr_table->u1.AddressOfData, imp_addr_table->u1.AddressOfData, il_ReadFile);
+        MessageBoxA(0, cosa, "hooking shit", 0);
+        
+        DWORD oldProtection;
+        if(VirtualProtect(&imp_addr_table->u1.AddressOfData, sizeof(DWORD), PAGE_EXECUTE_READWRITE, &oldProtection))
+        {
+           imp_addr_table->u1.AddressOfData = (DWORD)il_CreateFile;
            il_log(WARN,"       API function hooked!");
         }
         
