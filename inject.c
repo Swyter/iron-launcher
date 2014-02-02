@@ -20,6 +20,14 @@ char orig_path[MAX_PATH];
 
 char *get_current_mod_name(void);
 
+BOOL FileExists(LPCTSTR szPath)
+{
+  DWORD dwAttrib = GetFileAttributes(szPath);
+
+  return (dwAttrib != INVALID_FILE_ATTRIBUTES && 
+         !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+
 
 HANDLE __stdcall il_CreateFile(
   LPCTSTR lpFileName,
@@ -36,42 +44,115 @@ HANDLE __stdcall il_CreateFile(
   //                        lpFileName, dwDesiredAccess, dwShareMode);
   //il_log(WARN,cosa);
   
-  // static const char search_locations[7] =
-  // {
-    // { "Data\\font_data.xml",           "module\\%s\\data\font_data.xml"       },
-    // { "CommonRes\\core_shaders.brf",   "module\\%s\\data\\core_shaders.brf"   },
-    // { "CommonRes\\core_textures.brf",  "module\\%s\\data\\core_textures.brf"  },
-    // { "CommonRes\\core_materials.brf", "module\\%s\\data\\core_materials.brf" },
-    // { "CommonRes\\core_ui_meshes.brf", "module\\%s\\data\\core_ui_meshes.brf" },
-    // { "CommonRes\\core_pictures.brf",  "module\\%s\\data\\core_pictures.brf"  },
-    // { NULL, NULL }
-  // };
+  static struct{const char *src; const char *dst;} search_locations[] =
+  {
+    { "Data\\font_data.xml",           "Modules\\%s\\Data\\font_data.xml"       },
+    { "Data\\skeleton_bodies.xml",     "Modules\\%s\\Data\\skeleton_bodies.xml" },
+
+    { "Data\\flora_kinds.txt",         "Modules\\%s\\Data\\flora_kinds.txt"     },
+    { "Data\\ground_specs.txt",        "Modules\\%s\\Data\\ground_specs.txt"    },
+    { "Data\\item_modifiers.txt",      "Modules\\%s\\Data\\item_modifiers.txt"  },
+    { "Data\\skyboxes.txt",            "Modules\\%s\\Data\\skyboxes.txt"        },
+
+    { "man_alpha.pp",                  "Modules\\%s\\Data\\man_alpha.pp"        },
+    { "man_basic.pp",                  "Modules\\%s\\Data\\man_basic.pp"        },
+    { "man_flora.pp",                  "Modules\\%s\\Data\\man_flora.pp"        },
+    { "specular.pp",                   "Modules\\%s\\Data\\specular.pp"         },
+
+    { "CommonRes\\core_shaders.brf",   "Modules\\%s\\Data\\core_shaders.brf"    },
+    { "CommonRes\\core_textures.brf",  "Modules\\%s\\Data\\core_textures.brf"   },
+    { "CommonRes\\core_materials.brf", "Modules\\%s\\Data\\core_materials.brf"  },
+    { "CommonRes\\core_ui_meshes.brf", "Modules\\%s\\Data\\core_ui_meshes.brf"  },
+    { "CommonRes\\core_pictures.brf",  "Modules\\%s\\Data\\core_pictures.brf"   },
+    { NULL, NULL }
+  };
   
-  // char *p = search_locations[0][0];
+   //MessageBoxA(0, search_locations[1].src, "match", 0);
+   //MessageBoxA(0, search_locations[1].dst, "match", 0);
+   
+  char *mod_name = get_current_mod_name();
+   
+  int i;
+  for(i=0;i<sizeof(search_locations);i++)
+  { 
+   // MessageBoxA(0, search_locations[i].src, "match", 0);
+    if (search_locations[i].src == 0) break;
+  
+    //if(strncmp(lpFileName, search_locations[i].src, sizeof(search_locations[i].src))==0)
+    if(stricmp(lpFileName, search_locations[i].src)==0)
+    {
+      char modded[300];
+      sprintf(modded, search_locations[i].dst, mod_name);
+      il_log(ERRO, "Found modular replacement match! as follows:");
+      il_log(ERRO, lpFileName);
+      
+      if(FileExists(modded))
+      {
+        MessageBoxA(0, modded, "match", 0);
+        lpFileName = modded;
+        il_log(ERRO, modded);
+      }
+    }
+  }
+  
+  // char *p = search_locations[0];
+  
+  // while(1)
+  // {
+  // if (*p->src == 0) break;
+  
+      // MessageBoxA(0, p->src, "match", 0);
+      // p++;
+  // }
   
   
   // int i;
-  // for(i=0;i<sizeof(search_locations);i++)
+  // for(i=0;i<sizeof(search_locations)-2;i++)
   // { 
-    // if(strcmp(lpFileName,seach_locations[i][0])==0)
+    // MessageBoxA(0, search_locations[i].src, "match", 0);
+
+  
+    // if(strncmp(lpFileName, search_locations[i].src, sizeof(search_locations[i].src))==0)
     // {
       // char modded[300];
-      // sprintf(modded, search_location[i][1], get_current_mod_name());
+      // sprintf(modded, search_locations[i].dst, get_current_mod_name());
       // il_log(ERRO, "Found modular replacement match! as follows:");
       // il_log(ERRO, modded);
+      
+      // lpFileName = modded;
     // }
   // }
   
-  if(strcmp(lpFileName,"Data\\font_data.xml")==0)
-  {
-    lpFileName = "modules\\tld-svn\\Data\\font_data.xml";
-  }
+  // if(strcmp(lpFileName,"Data\\font_data.xml")==0)
+  // {
+    // lpFileName = "modules\\tld-svn\\Data\\font_data.xml";
+  // }
+  // if(strcmp(lpFileName,"Data\\skeleton_bodies.xml")==0)
+  // {
+    // lpFileName = "modules\\tld-svn\\Data\\skeleton_bodies.xml";
+  // }
+  // if(strcmp(lpFileName,"Data\\flora_kinds.txt")==0)
+  // {
+    // lpFileName = "modules\\tld-svn\\Data\\flora_kinds.txt";
+  // }
   
-  if(strcmp(lpFileName,"CommonRes\\core_shaders.brf")==0)
-  {
-    lpFileName = "modules\\tld-svn\\Data\\core_shaders.brf";
-  }
-  
+  // if(strcmp(lpFileName,"CommonRes\\core_shaders.brf")==0)
+  // {
+    // lpFileName = "modules\\tld-svn\\Data\\core_shaders.brf";
+  // }
+  // if(strcmp(lpFileName,"CommonRes\\core_textures.brf")==0)
+  // {
+    // lpFileName = "modules\\tld-svn\\Data\\core_textures.brf";
+  // }
+  // if(strcmp(lpFileName,"CommonRes\\core_materials.brf")==0)
+  // {
+    // lpFileName = "modules\\tld-svn\\Data\\core_materials.brf";
+  // }
+  // if(strcmp(lpFileName,"CommonRes\\core_ui_meshes.brf")==0)
+  // {
+    // lpFileName = "modules\\tld-svn\\Data\\core_ui_meshes.brf";
+  // }
+
   
 
   return CreateFile(
