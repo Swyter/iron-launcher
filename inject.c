@@ -54,9 +54,11 @@ HANDLE __stdcall il_CreateFile(
     { "Data\\item_modifiers.txt",      "Modules\\%s\\Data\\item_modifiers.txt"  },
     { "Data\\skyboxes.txt",            "Modules\\%s\\Data\\skyboxes.txt"        },
 
+    /* The Last Days -- custom asm pixel shaders, hell yeah! */
     { "man_alpha.pp",                  "Modules\\%s\\Data\\man_alpha.pp"        },
     { "man_basic.pp",                  "Modules\\%s\\Data\\man_basic.pp"        },
     { "man_flora.pp",                  "Modules\\%s\\Data\\man_flora.pp"        },
+    { "man_plain.pp",                  "Modules\\%s\\Data\\man_plain.pp"        },
     { "specular.pp",                   "Modules\\%s\\Data\\specular.pp"         },
 
     { "CommonRes\\core_shaders.brf",   "Modules\\%s\\Data\\core_shaders.brf"    },
@@ -75,7 +77,7 @@ HANDLE __stdcall il_CreateFile(
     if (search_locations[i].src == 0) break;
   
     //if(strncmp(lpFileName, search_locations[i].src, sizeof(search_locations[i].src))==0)
-    if(stricmp(lpFileName, search_locations[i].src)==0)
+    if(stricmp(strstr(lpFileName,search_locations[i].src), search_locations[i].src)==0)
     {
       char modded[300];
       sprintf(modded, search_locations[i].dst, mod_name);
