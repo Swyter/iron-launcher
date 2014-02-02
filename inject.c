@@ -110,11 +110,9 @@ HANDLE __stdcall il_CreateFile(
   );
 }
 
-void il_configure_hooks(void)
+void il_hook_module(HMODULE *target_module)
 {
-  il_log(INFO, "thread started");
-  
-  IMAGE_DOS_HEADER *dos_header = (PIMAGE_DOS_HEADER)GetModuleHandle(NULL); //0x400000;
+  IMAGE_DOS_HEADER *dos_header = (PIMAGE_DOS_HEADER)target_module;
   IMAGE_NT_HEADERS *nt_header  = (PIMAGE_NT_HEADERS)((BYTE*)dos_header + (dos_header->e_lfanew));
   IMAGE_OPTIONAL_HEADER IOH    = nt_header -> OptionalHeader;
   
@@ -122,18 +120,22 @@ void il_configure_hooks(void)
 
   if (imp==0)
   {
-    il_log(ERRO,"looks like the parent exe doesn't have an import table, bailing out... :(");
+    il_log(ERRO,"looks like the module doesn't have an import table, bailing out... :(");
     return;
   }
   
+  TCHAR image_name [MAX_PATH + 1];
+  GetModuleFileName(target_module, &image_name, MAX_PATH);
+  
   char debug[50];
-  sprintf(debug, "image base: %x, import virtualaddr: %x first thunk: %x",
+  sprintf(debug, "image name: %s image base: %x, import virtualaddr: %x first thunk: %x",
+                  image_name,
                   nt_header-> OptionalHeader.ImageBase,
                   nt_header-> OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress,
                   imp->FirstThunk
   );
-  
-  il_log(ERRO, debug);
+  il_log(WARN, "--");
+  il_log(WARN, debug);
 
   while(1)
   {
@@ -175,7 +177,7 @@ void il_configure_hooks(void)
       il_log(INFO, debug);
       
       
-      if(strncmp(imp_name, "CreateFile", 10) == 0)
+      if(strncmp(imp_name, "CreateFileA", 11) == 0)
       {        
         sprintf(debug, "  |    hooking iat p: %p / addr: %x  -- hook addr: %x",
                        imp_addr_table->u1.AddressOfData,
@@ -199,13 +201,29 @@ void il_configure_hooks(void)
     
     imp++;
   }
+}
+
+
+
+void il_configure_hooks(void)
+{
+  il_log(INFO, "thread started");
+  
+
+  /* for hooking the main game resources (core_*.brf, *.txt, *.xml, ...) */
+  il_hook_module(GetModuleHandle(NULL)); //0x400000;
+  
+  /* for hooking the pixel shaders (*.pp) */
+  il_hook_module(GetModuleHandle("d3dx9_31.dll"));
+  
+  
   
   #ifndef TRUE
   char buffer[50];
   
-  HMODULE handle = GetModuleHandle("SkinMagic.dll");
+  //HMODULE handle = GetModuleHandle("SkinMagic.dll");
     
-  sprintf(buffer,"SkinMagic.dll: %x",handle);
+  //sprintf(buffer,"SkinMagic.dll: %x",handle);
 
   
   //MessageBoxA(0, buffer, "match", 0);
