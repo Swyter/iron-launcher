@@ -161,6 +161,42 @@ HANDLE __stdcall il_CreateFile(
   );
 }
 
+BOOL __stdcall il_CreateProcess(
+  LPCTSTR lpApplicationName,
+   LPTSTR lpCommandLine,
+  LPSECURITY_ATTRIBUTES lpProcessAttributes,
+  LPSECURITY_ATTRIBUTES lpThreadAttributes,
+     BOOL bInheritHandles,
+    DWORD dwCreationFlags,
+   LPVOID lpEnvironment,
+  LPCTSTR lpCurrentDirectory,
+  LPSTARTUPINFO lpStartupInfo,
+  LPPROCESS_INFORMATION lpProcessInformation
+){
+
+
+  if(FileExists("Modules\\tld-svn\\Data\\TLDintro.bik"))
+  {
+    return FALSE;
+  }
+
+  else
+  {
+    return CreateProcess(
+            lpApplicationName,
+            lpCommandLine,
+            lpProcessAttributes,
+            lpThreadAttributes,
+            bInheritHandles,
+            dwCreationFlags,
+            lpEnvironment,
+            lpCurrentDirectory,
+            lpStartupInfo,
+            lpProcessInformation
+    );
+  }
+}
+
 void il_hook_module(HMODULE *target_module)
 {
   if (target_module==0)
@@ -248,6 +284,23 @@ void il_hook_module(HMODULE *target_module)
         if(VirtualProtect(&imp_addr_table->u1.AddressOfData, sizeof(DWORD), PAGE_EXECUTE_READWRITE, &oldProtection))
         {
            imp_addr_table->u1.AddressOfData = (DWORD)il_CreateFile;
+           il_log(WARN,"  |    API function hooked!");
+        }
+        
+      }
+      
+      if(strncmp(imp_name, "CreateProcessA", 14) == 0)
+      {        
+        sprintf(debug, "  |    hooking iat p: %p / addr: %x  -- hook addr: %x",
+                       imp_addr_table->u1.AddressOfData,
+                       imp_addr_table->u1.AddressOfData,
+                       il_CreateFile);
+        il_log(WARN, debug);
+        
+        DWORD oldProtection;
+        if(VirtualProtect(&imp_addr_table->u1.AddressOfData, sizeof(DWORD), PAGE_EXECUTE_READWRITE, &oldProtection))
+        {
+           imp_addr_table->u1.AddressOfData = (DWORD)il_CreateProcess;
            il_log(WARN,"  |    API function hooked!");
         }
         
