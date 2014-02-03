@@ -173,28 +173,32 @@ BOOL __stdcall il_CreateProcess(
   LPSTARTUPINFO lpStartupInfo,
   LPPROCESS_INFORMATION lpProcessInformation
 ){
-
-
-  if(FileExists("Modules\\tld-svn\\Data\\TLDintro.bik"))
+  if(strncmp(lpApplicationName,"binkplay.exe",12)==0)
   {
-    return FALSE;
+    char *mod_name = get_current_mod_name();
+    char  bik_path[MAX_PATH] = {0};
+    
+    sprintf(bik_path, "Modules\\%s\\Data\\TLDintro.bik", mod_name);
+
+    if(FileExists(bik_path))
+    {
+      il_log(WARN, "found custom Data\\TLDintro.bik video, skipping TW splash videos...");
+      return FALSE;
+    }
   }
 
-  else
-  {
-    return CreateProcess(
-            lpApplicationName,
-            lpCommandLine,
-            lpProcessAttributes,
-            lpThreadAttributes,
-            bInheritHandles,
-            dwCreationFlags,
-            lpEnvironment,
-            lpCurrentDirectory,
-            lpStartupInfo,
-            lpProcessInformation
-    );
-  }
+  return CreateProcess(
+          lpApplicationName,
+          lpCommandLine,
+          lpProcessAttributes,
+          lpThreadAttributes,
+          bInheritHandles,
+          dwCreationFlags,
+          lpEnvironment,
+          lpCurrentDirectory,
+          lpStartupInfo,
+          lpProcessInformation
+  );
 }
 
 void il_hook_module(HMODULE *target_module)
@@ -394,27 +398,34 @@ int __stdcall DirectInput8Create(int a1, int a2, int a3, int a4, int a5)
     result = E_FAIL;
     
   /* Print a debug messagebox with call-related info */
-  char msg[MAX_PATH]; sprintf(msg,"info: %x/%x/%x/%x/%p/%x/  %p/%p  %x  %s",
+  char msg[MAX_PATH]; sprintf(msg,"DirectInput8Create called -- info: %x/%x/%x/%x/%p/%x/  %p/%p  %x  %s",
                               result, a1, a2, a3, a4, a4, orig_pointer, orig_handle, self_handle, get_current_mod_name());
   
-  //MessageBoxA(0, msg, orig_path, 0);
+  il_log(WARN, msg);
   
   
-  if(FileExists("Modules\\tld-svn\\Data\\TLDintro.bik"))
+  char *mod_name = get_current_mod_name();
+  char  bik_path[MAX_PATH] = {0};
+  
+  sprintf(bik_path, "Modules\\%s\\Data\\TLDintro.bik", mod_name);
+  
+  if(FileExists(bik_path))
   {
     /*set the module name for the TLD video */
-    //sprintf(modded, search_locations[i].dst, mod_name);
+    strcat(bik_path, " /P /I2 /J /Z /R /U1 /W-1 /H-1 /C /B2");
     
     /* launch the TLD custom video, doesn't blocks the main thread, we'll be background-loading in the meantime */
+    // Modules\\tld-svn\\Data\\TLDintro.bik /P /I2 /J /Z1 /R /U1 /W-1 /H-1 /C /B2
     ShellExecute(
       NULL,
-      "open",
-      "binkplay.exe",
-      //"/P /I2 /J /Z1 /R /U1 /W-1 /H-1 /C /B2 Modules\\tld-svn\\Data\\TLDintro.bik",
-      "/P /I2 /J /Z  /R /U1 /W-1 /H-1 /C /B2 Modules\\tld-svn\\Data\\TLDintro.bik",
+     "open",
+     "binkplay.exe",
+      bik_path,
       NULL,
       SW_SHOWNORMAL
     );
+    
+    il_log(WARN, "found and played custom Data\\TLDintro.bik video... enjoy it!");
   }
    
 
