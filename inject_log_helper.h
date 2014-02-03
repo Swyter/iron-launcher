@@ -12,7 +12,7 @@ void il_log(int log_level, char *msg)
 {
   if(!il_log_file)
   {
-    il_log_file = fopen("R:\\Repositories\\iron-launcher-redux\\log.log","w+");
+    il_log_file = fopen("dinput8.dll.il.log","w+");
   }
   
   char *symbol;

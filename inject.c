@@ -2,6 +2,7 @@
 #define WIN32_EXTRA_LEAN
 
 #include <windows.h>
+#include <shlwapi.h>
 #include <stdio.h>
 
 #include "inject_log_helper.h"
@@ -55,11 +56,11 @@ HANDLE __stdcall il_CreateFile(
     { "Data\\skyboxes.txt",            "Modules\\%s\\Data\\skyboxes.txt"        },
 
     /* The Last Days -- custom asm pixel shaders, hell yeah! */
-    { "man_alpha.pp",                  "Modules\\%s\\Data\\man_alpha.pp"        },
-    { "man_basic.pp",                  "Modules\\%s\\Data\\man_basic.pp"        },
-    { "man_flora.pp",                  "Modules\\%s\\Data\\man_flora.pp"        },
-    { "man_plain.pp",                  "Modules\\%s\\Data\\man_plain.pp"        },
-    { "specular.pp",                   "Modules\\%s\\Data\\specular.pp"         },
+    { ".\\man_alpha.pp",               "Modules\\%s\\Data\\man_alpha.pp"        },
+    { ".\\man_basic.pp",               "Modules\\%s\\Data\\man_basic.pp"        },
+    { ".\\man_flora.pp",               "Modules\\%s\\Data\\man_flora.pp"        },
+    { ".\\man_plain.pp",               "Modules\\%s\\Data\\man_plain.pp"        },
+    { ".\\specular.pp",                "Modules\\%s\\Data\\specular.pp"         },
 
     { "CommonRes\\core_shaders.brf",   "Modules\\%s\\Data\\core_shaders.brf"    },
     { "CommonRes\\core_textures.brf",  "Modules\\%s\\Data\\core_textures.brf"   },
@@ -71,13 +72,68 @@ HANDLE __stdcall il_CreateFile(
      
   char *mod_name = get_current_mod_name();
   
+  /* just in case, if the provided path is not relative */
+  char *target_path = lpFileName;
+  
+  if(!PathIsRelative(lpFileName))
+  {
+
+    /* get the absolute path of the parent executable */
+    // R:\Juegos\swconquest\mount&blade.mapedit.exe
+    
+    TCHAR parent_path[MAX_PATH + 1];
+    GetModuleFileName(NULL, &parent_path, MAX_PATH);
+    
+    MessageBoxA(0, parent_path, "main exe abs path", 0);
+
+    
+    /* strip the filename out of it, leaving just the root M&B folder */
+    // R:\Juegos\swconquest
+    
+    PathRemoveFileSpec(parent_path);
+    
+    MessageBoxA(0, parent_path, "stripped", 0);
+
+    
+    /* make target path relative to compare against our needle, this is a problem mainly with d3dx9_31.dll */
+    // R:\Juegos\swconquest
+    // R:\Juegos\swconquest\specular.pp
+    // =
+    // .\specular.pp
+    
+    TCHAR rel_target_path[MAX_PATH + 1] = {0};
+    
+    BOOL ret = PathRelativePathTo(rel_target_path,
+      
+                                  parent_path,
+                                  FILE_ATTRIBUTE_DIRECTORY,
+                                  
+                                  lpFileName,
+                                  FILE_ATTRIBUTE_NORMAL
+    );
+    
+    /* if the paths are in the same drive and doesn't fails for arcane reasons */
+    
+    if(ret == TRUE)
+    {
+      MessageBoxA(0, lpFileName, "normal", 0);
+      MessageBoxA(0, rel_target_path, "relative", 0);
+      
+      /* let's be practical, set it as if nothing had happened */
+      
+      target_path = rel_target_path;
+    }
+  }
+  
   int i;
   for(i=0;i<sizeof(search_locations);i++)
   { 
     if (search_locations[i].src == 0) break;
+    
+    
+    /* case-insensitive comparison of the requested file against possible modular matches */
   
-    //if(strncmp(lpFileName, search_locations[i].src, sizeof(search_locations[i].src))==0)
-    if(stricmp(strstr(lpFileName,search_locations[i].src), search_locations[i].src)==0)
+    if(stricmp(target_path, search_locations[i].src)==0)
     {
       char modded[300];
       sprintf(modded, search_locations[i].dst, mod_name);
@@ -87,6 +143,8 @@ HANDLE __stdcall il_CreateFile(
       
       if(FileExists(modded))
       {
+        /* replace it by our modular alternative, if exists */
+        
         lpFileName = modded;
         
         MessageBoxA(0, modded, "match", 0);
@@ -114,6 +172,14 @@ HANDLE __stdcall il_CreateFile(
 
 void il_hook_module(HMODULE *target_module)
 {
+  if (target_module==0)
+  {
+    il_log(ERRO,"--");
+    il_log(ERRO,"looks like the module doesn't exists, bailing out... :(");
+    return;
+  }
+
+
   IMAGE_DOS_HEADER *dos_header = (PIMAGE_DOS_HEADER)target_module;
   IMAGE_NT_HEADERS *nt_header  = (PIMAGE_NT_HEADERS)((BYTE*)dos_header + (dos_header->e_lfanew));
   IMAGE_OPTIONAL_HEADER IOH    = nt_header -> OptionalHeader;
