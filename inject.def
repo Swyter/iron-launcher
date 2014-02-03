@@ -3,3 +3,6 @@ LIBRARY dinput8.dll
 EXPORTS
 DirectInput8Create
 DllMain
+
+; why not? let's make it accessible and interesting!
+il_CreateFile
