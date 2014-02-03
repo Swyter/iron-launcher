@@ -84,16 +84,12 @@ HANDLE __stdcall il_CreateFile(
     TCHAR parent_path[MAX_PATH + 1];
     GetModuleFileName(NULL, &parent_path, MAX_PATH);
     
-    MessageBoxA(0, parent_path, "main exe abs path", 0);
-
     
     /* strip the filename out of it, leaving just the root M&B folder */
     // R:\Juegos\swconquest
     
     PathRemoveFileSpec(parent_path);
     
-    MessageBoxA(0, parent_path, "stripped", 0);
-
     
     /* make target path relative to compare against our needle, this is a problem mainly with d3dx9_31.dll */
     // R:\Juegos\swconquest
@@ -113,14 +109,9 @@ HANDLE __stdcall il_CreateFile(
     );
     
     /* if the paths are in the same drive and doesn't fails for arcane reasons */
-    
     if(ret == TRUE)
     {
-      MessageBoxA(0, lpFileName, "normal", 0);
-      MessageBoxA(0, rel_target_path, "relative", 0);
-      
       /* let's be practical, set it as if nothing had happened */
-      
       target_path = rel_target_path;
     }
   }
@@ -132,9 +123,9 @@ HANDLE __stdcall il_CreateFile(
     
     
     /* case-insensitive comparison of the requested file against possible modular matches */
-  
     if(stricmp(target_path, search_locations[i].src)==0)
     {
+      /* format the module name into it */
       char modded[300];
       sprintf(modded, search_locations[i].dst, mod_name);
       
@@ -144,10 +135,9 @@ HANDLE __stdcall il_CreateFile(
       if(FileExists(modded))
       {
         /* replace it by our modular alternative, if exists */
-        
         lpFileName = modded;
         
-        MessageBoxA(0, modded, "match", 0);
+        //MessageBoxA(0, modded, "match", 0);
         sprintf(debug,  "  |    the replacement file exists, replacing by: %s", modded);
         il_log(WARN,debug);
       }
@@ -158,7 +148,8 @@ HANDLE __stdcall il_CreateFile(
       }
     }
   }
-
+  
+  /* call the original function with our tweaks applied, hopefully without much overhead */
   return CreateFile(
             lpFileName,
             dwDesiredAccess,
@@ -353,7 +344,26 @@ int __stdcall DirectInput8Create(int a1, int a2, int a3, int a4, int a5)
   char msg[MAX_PATH]; sprintf(msg,"info: %x/%x/%x/%x/%p/%x/  %p/%p  %x  %s",
                               result, a1, a2, a3, a4, a4, orig_pointer, orig_handle, self_handle, get_current_mod_name());
   
-  MessageBoxA(0, msg, orig_path, 0);
+  //MessageBoxA(0, msg, orig_path, 0);
+  
+  
+  if(FileExists("Modules\\tld-svn\\Data\\TLDintro.bik"))
+  {
+    /*set the module name for the TLD video */
+    //sprintf(modded, search_locations[i].dst, mod_name);
+    
+    /* launch the TLD custom video, doesn't blocks the main thread, we'll be background-loading in the meantime */
+    ShellExecute(
+      NULL,
+      "open",
+      "binkplay.exe",
+      //"/P /I2 /J /Z1 /R /U1 /W-1 /H-1 /C /B2 Modules\\tld-svn\\Data\\TLDintro.bik",
+      "/P /I2 /J /Z  /R /U1 /W-1 /H-1 /C /B2 Modules\\tld-svn\\Data\\TLDintro.bik",
+      NULL,
+      SW_SHOWNORMAL
+    );
+  }
+   
 
   return result;
 }
