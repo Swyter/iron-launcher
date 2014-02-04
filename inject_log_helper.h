@@ -19,11 +19,11 @@ void il_log(int log_level, char *msg)
   
   switch(log_level)
   {
-    case INFO: symbol = "I"; break;
-    case WARN: symbol = "!"; break;
-    case ERRO: symbol = "E"; break;
-    default:   symbol = " ";
+    case INFO: symbol = (char*)'I'; break;
+    case WARN: symbol = (char*)'!'; break;
+    case ERRO: symbol = (char*)'E'; break;
+    default:   symbol = (char*)' ';
   }    
   
-  fprintf(il_log_file,"[%s] %s\n", symbol, msg); fflush(il_log_file);
+  fprintf(il_log_file,"[%c] %s\n", symbol, msg); fflush(il_log_file);
 }
