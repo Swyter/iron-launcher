@@ -38,8 +38,7 @@ HANDLE __stdcall il_CreateFile(
     DWORD dwCreationDisposition,
     DWORD dwFlagsAndAttributes,
    HANDLE hTemplateFile
-)
-{
+){
 
   char debug[500]; sprintf(debug,"CreateFile called! (lpFileName=%s,dwDesiredAccess=%x,dwShareMode=%x)",
                            lpFileName, dwDesiredAccess, dwShareMode);
@@ -73,7 +72,7 @@ HANDLE __stdcall il_CreateFile(
   char *mod_name = get_current_mod_name();
   
   /* just in case, if the provided path is not relative */
-  char *target_path = lpFileName;
+  char *target_path = (char*)lpFileName;
   
   if(!PathIsRelative(lpFileName))
   {
@@ -82,7 +81,7 @@ HANDLE __stdcall il_CreateFile(
     // R:\Juegos\swconquest\mount&blade.mapedit.exe
     
     TCHAR parent_path[MAX_PATH + 1];
-    GetModuleFileName(NULL, &parent_path, MAX_PATH);
+    GetModuleFileName(NULL, parent_path, MAX_PATH);
     
     
     /* strip the filename out of it, leaving just the root M&B folder */
@@ -201,7 +200,7 @@ BOOL __stdcall il_CreateProcess(
   );
 }
 
-void il_hook_module(HMODULE *target_module)
+void il_hook_module(HINSTANCE target_module)
 {
   if (target_module==0)
   {
@@ -213,7 +212,6 @@ void il_hook_module(HMODULE *target_module)
 
   IMAGE_DOS_HEADER *dos_header = (PIMAGE_DOS_HEADER)target_module;
   IMAGE_NT_HEADERS *nt_header  = (PIMAGE_NT_HEADERS)((BYTE*)dos_header + (dos_header->e_lfanew));
-  IMAGE_OPTIONAL_HEADER IOH    = nt_header -> OptionalHeader;
   
   IMAGE_IMPORT_DESCRIPTOR *imp = (PIMAGE_IMPORT_DESCRIPTOR)((BYTE*)dos_header + (nt_header-> OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress));
 
@@ -224,7 +222,7 @@ void il_hook_module(HMODULE *target_module)
   }
   
   TCHAR image_name [MAX_PATH + 1];
-  GetModuleFileName(target_module, &image_name, MAX_PATH);
+  GetModuleFileName(target_module, image_name, MAX_PATH);
   
   char debug[50];
   sprintf(debug, "image name: %s image base: %x, import virtualaddr: %x first thunk: %x",
@@ -260,7 +258,7 @@ void il_hook_module(HMODULE *target_module)
         sprintf(ordinal, "ordinal #%u",
                           imp_name_table-> u1.ForwarderString & ~(1<<31)
         );
-        imp_name = &ordinal;
+        imp_name = (char*)ordinal;
       }
       
       else
@@ -279,7 +277,7 @@ void il_hook_module(HMODULE *target_module)
       if(strncmp(imp_name, "CreateFileA", 11) == 0)
       {        
         sprintf(debug, "  |    hooking iat p: %p / addr: %x  -- hook addr: %x",
-                       imp_addr_table->u1.AddressOfData,
+                       &imp_addr_table->u1.AddressOfData,
                        imp_addr_table->u1.AddressOfData,
                        il_CreateFile);
         il_log(WARN, debug);
@@ -331,18 +329,9 @@ void il_configure_hooks(void)
   
   /* for hooking the pixel shaders (*.pp) */
   il_hook_module(GetModuleHandle("d3dx9_31.dll"));
-  
-  
-  
+
   #ifndef TRUE
   char buffer[50];
-  
-  //HMODULE handle = GetModuleHandle("SkinMagic.dll");
-    
-  //sprintf(buffer,"SkinMagic.dll: %x",handle);
-
-  
-  //MessageBoxA(0, buffer, "match", 0);
 
   Sleep(2*1000);
 
@@ -376,7 +365,7 @@ void il_configure_hooks(void)
   
   
   il_log(INFO, "thread ended, now wait for the hooked calls...");
-  return 1;
+  return;
 
 }
 
@@ -436,8 +425,7 @@ BOOL __stdcall DllMain(
   HINSTANCE hModule,
       DWORD ulReason,
      LPVOID lpReserved
-)
-{
+){
   switch(ulReason)
   {
     /* If we are attaching to a process */
@@ -448,14 +436,14 @@ BOOL __stdcall DllMain(
       
       /* Get the module handles and paths for the parent executable and itself */
       TCHAR parent_path [MAX_PATH + 1];
-      GetModuleFileName(NULL, &parent_path, MAX_PATH);
+      GetModuleFileName(NULL, (LPSTR)&parent_path, MAX_PATH);
       
       HMODULE parent_handle = GetModuleHandle(NULL);
       
       self_handle = hModule;
       
       TCHAR self_path [MAX_PATH + 1];
-      GetModuleFileName(self_handle, &self_path, MAX_PATH);
+      GetModuleFileName(self_handle, (LPSTR)&self_path, MAX_PATH);
       
       /* Print a debug messagebox with parent-related info */
       char msg[MAX_PATH]; sprintf(msg,"parent exe path: %s \n"
@@ -473,7 +461,7 @@ BOOL __stdcall DllMain(
         0,
         (LPTHREAD_START_ROUTINE)&il_configure_hooks,
         NULL,
-        NULL,
+        (DWORD)NULL,
         0//'IL'
       );
       
@@ -484,7 +472,7 @@ BOOL __stdcall DllMain(
     /* If the process ask for unloading */
     case DLL_PROCESS_DETACH:
     
-      MessageBoxA(0, "unloading!", &orig_path, 0);
+      MessageBoxA(0, "unloading!", (LPSTR)&orig_path, 0);
       break;
   }
 
@@ -520,7 +508,7 @@ char *get_current_mod_name(void)
        "last_module",
         NULL,
        &ktype,
-       &mod_name,
+       (LPBYTE)&mod_name,
        &ksize
     );
     
