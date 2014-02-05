@@ -400,8 +400,8 @@ int __stdcall DirectInput8Create(int a1, int a2, int a3, int a4, int a5)
   
   if(FileExists(bik_path))
   {
-    /*set the module name for the TLD video */
-    strcat(bik_path, " /P /I2 /J /Z /R /U1 /W-1 /H-1 /C /B2");
+    /*append the parameters for the TLD video, fullscreen, no borders, respect aspect ratio */
+    strcat(bik_path, " /P /I2 /J /Z /R /U1 /C /B2");
     
     /* launch the TLD custom video, doesn't blocks the main thread, we'll be background-loading in the meantime */
     // Modules\\tld-svn\\Data\\TLDintro.bik /P /I2 /J /Z1 /R /U1 /W-1 /H-1 /C /B2
@@ -490,9 +490,19 @@ char *get_current_mod_name(void)
   #define KEY_WOW64_64KEY 0x0100
   #define KEY_WOW64_32KEY 0x0200
   
+  enum vname{MB, WB};
+  
+  struct{
+    const char *key;
+    const char *value;
+  } vprop[] = {
+    [MB]={"Software\\MountAndBladeKeys",       "last_module"        },
+    [WB]={"Software\\MountAndBladeWarbandKeys","last_module_warband"}
+  };
+  
   HRESULT lResult = RegOpenKeyEx(
     HKEY_CURRENT_USER,
-   "Software\\MountAndBladeKeys",
+    vprop[MB].key,
     0,
     KEY_READ|KEY_WOW64_32KEY,
     &key_thingie
@@ -505,7 +515,7 @@ char *get_current_mod_name(void)
   
     RegQueryValueEx(
         key_thingie,
-       "last_module",
+        vprop[MB].value,
         NULL,
        &ktype,
        (LPBYTE)&mod_name,
