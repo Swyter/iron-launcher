@@ -139,6 +139,8 @@ HANDLE __stdcall il_CreateFile(
         //MessageBoxA(0, modded, "match", 0);
         sprintf(debug,  "  |    the replacement file exists, replacing by: %s", modded);
         il_log(WARN,debug);
+        
+        break;
       }
       
       else
@@ -178,6 +180,9 @@ BOOL __stdcall il_CreateProcess(
     char  bik_path[MAX_PATH] = {0};
     
     sprintf(bik_path, "Modules\\%s\\Data\\TLDintro.bik", mod_name);
+    
+    //MessageBoxA(0, mod_name, "lolwut", 0);
+
 
     if(FileExists(bik_path))
     {
@@ -197,6 +202,97 @@ BOOL __stdcall il_CreateProcess(
           lpCurrentDirectory,
           lpStartupInfo,
           lpProcessInformation
+  );
+}
+
+char mod_string[MAX_PATH];
+
+LONG __stdcall il_RegSetValueEx(
+  HKEY hKey,
+  LPCTSTR lpValueName,
+  DWORD Reserved,
+  DWORD dwType,
+  const BYTE *lpData,
+  DWORD cbData
+){
+
+
+  MessageBoxA(0, "reg break", "match", 0);
+
+  if(strstr(lpValueName,"last_module"))
+  {
+    char debug[400]; sprintf(debug,  "called RegSetValue with value: %s  data: %s", lpValueName, lpData);
+    il_log(ERRO, debug);
+    
+    strcpy(mod_string, lpData);
+  }
+  
+  
+  char *mod_name = get_current_mod_name();
+  char  bik_path[MAX_PATH] = {0};
+  
+  sprintf(bik_path, "Modules\\%s\\Data\\TLDintro.bik", mod_name);
+  
+  if(FileExists(bik_path))
+  {
+    /* append the parameters for the TLD video, fullscreen, no borders, respect aspect ratio */
+    strcat(bik_path, " /P /I2 /J /Z /R /U1 /C /B2");
+
+    
+    /* launch the TLD custom video, doesn't blocks the main thread, we'll be background-loading in the meantime */
+    // Modules\\tld-svn\\Data\\TLDintro.bik /P /I2 /J /Z1 /R /U1 /W-1 /H-1 /C /B2
+    HINSTANCE video = ShellExecute(
+      NULL,
+     "open",
+     "binkplay.exe",
+      bik_path,
+      NULL,
+      SW_SHOW
+    );
+    
+    Sleep(500);
+    
+    /* keep showing the video even after the game has started, nifty tricks */
+    HWND hWnd = FindWindow("BinkWin", NULL);
+    
+    if(hWnd)
+    {
+      //MessageBoxA(0,"handle found",0,0);
+      SetWindowPos(
+        hWnd,
+        HWND_TOPMOST,
+        0,
+        0,
+        0,
+        0,
+        SWP_SHOWWINDOW|SWP_NOSIZE|SWP_NOMOVE
+      );
+    }
+    
+    
+    
+    // DWORD WINAPI SuspendThread(
+      // main_thread
+    // );
+    
+    // WaitForSingleObject(video, INFINITE);
+    
+    // DWORD WINAPI ResumeThread(
+      // main_thread
+    // );
+    
+    il_log(WARN, "found and played custom Data\\TLDintro.bik video... enjoy it!");
+  }
+  
+  
+      
+  return RegSetValueEx(
+          hKey,
+          lpValueName,
+          Reserved,
+          dwType,
+          lpData,
+          cbData
   );
 }
 
@@ -307,6 +403,23 @@ void il_hook_module(HINSTANCE target_module)
         }
         
       }
+      
+      if(strncmp(imp_name, "RegSetValueExA", 14) == 0)
+      {        
+        sprintf(debug, "  |    hooking iat p: %p / addr: %x  -- hook addr: %x",
+                       imp_addr_table->u1.AddressOfData,
+                       imp_addr_table->u1.AddressOfData,
+                       il_RegSetValueEx);
+        il_log(WARN, debug);
+        
+        DWORD oldProtection;
+        if(VirtualProtect(&imp_addr_table->u1.AddressOfData, sizeof(DWORD), PAGE_EXECUTE_READWRITE, &oldProtection))
+        {
+           imp_addr_table->u1.AddressOfData = (DWORD)il_RegSetValueEx;
+           il_log(WARN,"  |    API function hooked!");
+        }
+        
+      }
 
       imp_name_table++;
       imp_addr_table++;
@@ -327,8 +440,11 @@ void il_configure_hooks(void)
   /* for hooking the main game resources (core_*.brf, *.txt, *.xml, ...) */
   il_hook_module(GetModuleHandle(NULL)); //0x400000;
   
-  /* for hooking the pixel shaders (*.pp) */
+  /* for hooking the pixel shaders (*.pp) -- 1.011 */
   il_hook_module(GetModuleHandle("d3dx9_31.dll"));
+  
+  /* for hooking the pixel shaders (*.pp) -- wb */
+  il_hook_module(GetModuleHandle("d3dx9_42.dll"));
 
   #ifndef TRUE
   char buffer[50];
@@ -338,7 +454,7 @@ void il_configure_hooks(void)
   char *p = (char *)0x400000; //0xAFB71D0;
   while(*p++ < 0xBBBBBBB)
   { // Version 1.011
-    if(*p == 'V' &&
+    if(*p     == 'V' &&
        *(p+1) == 'e' &&
        *(p+2) == 'r' &&
        *(p+3) == 's' &&
@@ -347,7 +463,7 @@ void il_configure_hooks(void)
        *(p+6) == 'n' &&
        *(p+7) == ' ' &&
        *(p+8) == '1' &&
-       *(p+8) == '.')
+       *(p+9) == '.')
     {
       il_log(WARN, "LOL TRONQUI");
       //il_log(INFO, p);
@@ -386,38 +502,14 @@ int __stdcall DirectInput8Create(int a1, int a2, int a3, int a4, int a5)
   else
     result = E_FAIL;
     
+  MessageBoxA(0, "dic8 break", "match", 0);
+
+    
   /* Print a debug messagebox with call-related info */
   char msg[MAX_PATH]; sprintf(msg,"DirectInput8Create called -- info: %x/%x/%x/%x/%p/%x/  %p/%p  %x  %s",
                               result, a1, a2, a3, a4, a4, orig_pointer, orig_handle, self_handle, get_current_mod_name());
   
   il_log(WARN, msg);
-  
-  
-  char *mod_name = get_current_mod_name();
-  char  bik_path[MAX_PATH] = {0};
-  
-  sprintf(bik_path, "Modules\\%s\\Data\\TLDintro.bik", mod_name);
-  
-  if(FileExists(bik_path))
-  {
-    /*append the parameters for the TLD video, fullscreen, no borders, respect aspect ratio */
-    strcat(bik_path, " /P /I2 /J /Z /R /U1 /C /B2");
-    
-    /* launch the TLD custom video, doesn't blocks the main thread, we'll be background-loading in the meantime */
-    // Modules\\tld-svn\\Data\\TLDintro.bik /P /I2 /J /Z1 /R /U1 /W-1 /H-1 /C /B2
-    ShellExecute(
-      NULL,
-     "open",
-     "binkplay.exe",
-      bik_path,
-      NULL,
-      SW_SHOWNORMAL
-    );
-    
-    il_log(WARN, "found and played custom Data\\TLDintro.bik video... enjoy it!");
-  }
-   
-
   return result;
 }
 
@@ -481,49 +573,8 @@ BOOL __stdcall DllMain(
 }
 
 
+
 char *get_current_mod_name(void)
-{
-  static char mod_name[MAX_PATH] = "Random stuff";
-  HKEY key_thingie;
-  
-  // some undefined constants in TinyCC's headers
-  #define KEY_WOW64_64KEY 0x0100
-  #define KEY_WOW64_32KEY 0x0200
-  
-  enum vname{MB, WB};
-  
-  struct{
-    const char *key;
-    const char *value;
-  } vprop[] = {
-    [MB]={"Software\\MountAndBladeKeys",       "last_module"        },
-    [WB]={"Software\\MountAndBladeWarbandKeys","last_module_warband"}
-  };
-  
-  HRESULT lResult = RegOpenKeyEx(
-    HKEY_CURRENT_USER,
-    vprop[MB].key,
-    0,
-    KEY_READ|KEY_WOW64_32KEY,
-    &key_thingie
-  );
-    
-  if(lResult == ERROR_SUCCESS)
-  {
-  
-    DWORD ktype = REG_SZ, ksize = sizeof(mod_name);
-  
-    RegQueryValueEx(
-        key_thingie,
-        vprop[MB].value,
-        NULL,
-       &ktype,
-       (LPBYTE)&mod_name,
-       &ksize
-    );
-    
-    RegCloseKey(key_thingie);
-   }
-    
-  return (char*)mod_name;
+{    
+  return (char*)mod_string;
 }
