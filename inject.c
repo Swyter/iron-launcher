@@ -433,9 +433,9 @@ BOOL __stdcall DllMain(
       
       /* Print a debug messagebox with parent-related info */
       char msg[MAX_PATH]; sprintf(msg,"parent exe path: %s \n"
-                                      "parent exe handle: %p \n"
-                                      "dll self handle: %p \n"
-                                      "dll self path: %s \n", parent_path, parent_handle, self_handle, self_path);
+                                  "    parent exe handle: %p \n"
+                                  "    dll self handle: %p \n"
+                                  "    dll self path: %s \n", parent_path, parent_handle, self_handle, self_path);
       //MessageBoxA(0, msg, orig_path, 0);
       il_log(INFO, msg);
       

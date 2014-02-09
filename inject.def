@@ -6,3 +6,5 @@ DllMain
 
 ; why not? let's make it accessible and interesting!
 il_CreateFile
+il_CreateProcess
+il_RegSetValueEx
