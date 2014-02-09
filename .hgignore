@@ -1,3 +1,4 @@
 syntax: glob
 inject.rc.o
 inject_date.rc
+inject_date.h
