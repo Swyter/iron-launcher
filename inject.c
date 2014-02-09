@@ -180,9 +180,6 @@ BOOL __stdcall il_CreateProcess(
     char  bik_path[MAX_PATH] = {0};
     
     sprintf(bik_path, "Modules\\%s\\Data\\TLDintro.bik", mod_name);
-    
-    //MessageBoxA(0, mod_name, "lolwut", 0);
-
 
     if(FileExists(bik_path))
     {
@@ -216,9 +213,6 @@ LONG __stdcall il_RegSetValueEx(
   DWORD cbData
 ){
 
-
-  MessageBoxA(0, "reg break", "match", 0);
-
   if(strstr(lpValueName,"last_module"))
   {
     char debug[400]; sprintf(debug,  "called RegSetValue with value: %s  data: %s", lpValueName, lpData);
@@ -226,65 +220,6 @@ LONG __stdcall il_RegSetValueEx(
     
     strcpy(mod_string, lpData);
   }
-  
-  
-  char *mod_name = get_current_mod_name();
-  char  bik_path[MAX_PATH] = {0};
-  
-  sprintf(bik_path, "Modules\\%s\\Data\\TLDintro.bik", mod_name);
-  
-  if(FileExists(bik_path))
-  {
-    /* append the parameters for the TLD video, fullscreen, no borders, respect aspect ratio */
-    strcat(bik_path, " /P /I2 /J /Z /R /U1 /C /B2");
-
-    
-    /* launch the TLD custom video, doesn't blocks the main thread, we'll be background-loading in the meantime */
-    // Modules\\tld-svn\\Data\\TLDintro.bik /P /I2 /J /Z1 /R /U1 /W-1 /H-1 /C /B2
-    HINSTANCE video = ShellExecute(
-      NULL,
-     "open",
-     "binkplay.exe",
-      bik_path,
-      NULL,
-      SW_SHOW
-    );
-    
-    Sleep(500);
-    
-    /* keep showing the video even after the game has started, nifty tricks */
-    HWND hWnd = FindWindow("BinkWin", NULL);
-    
-    if(hWnd)
-    {
-      //MessageBoxA(0,"handle found",0,0);
-      SetWindowPos(
-        hWnd,
-        HWND_TOPMOST,
-        0,
-        0,
-        0,
-        0,
-        SWP_SHOWWINDOW|SWP_NOSIZE|SWP_NOMOVE
-      );
-    }
-    
-    
-    
-    // DWORD WINAPI SuspendThread(
-      // main_thread
-    // );
-    
-    // WaitForSingleObject(video, INFINITE);
-    
-    // DWORD WINAPI ResumeThread(
-      // main_thread
-    // );
-    
-    il_log(WARN, "found and played custom Data\\TLDintro.bik video... enjoy it!");
-  }
-  
-  
       
   return RegSetValueEx(
           hKey,
@@ -330,6 +265,8 @@ void il_hook_module(HINSTANCE target_module)
   il_log(WARN, "--");
   il_log(WARN, debug);
 
+  
+  /* loop for all the imported DLLs */
   while(1)
   {
     if (imp->OriginalFirstThunk == 0) break;
@@ -342,6 +279,7 @@ void il_hook_module(HINSTANCE target_module)
     IMAGE_THUNK_DATA *imp_name_table = (PIMAGE_THUNK_DATA)((BYTE*)dos_header + (imp->OriginalFirstThunk));
     IMAGE_THUNK_DATA *imp_addr_table = (PIMAGE_THUNK_DATA)((BYTE*)dos_header + (imp->FirstThunk));
     
+    /* loop for all the imported functions in the parallel sibling structures (INT and IAT) from every DLL */
     while(1)
     {
       if (imp_name_table-> u1.AddressOfData == 0) break;
@@ -370,55 +308,47 @@ void il_hook_module(HINSTANCE target_module)
       il_log(INFO, debug);
       
       
-      if(strncmp(imp_name, "CreateFileA", 11) == 0)
-      {        
-        sprintf(debug, "  |    hooking iat p: %p / addr: %x  -- hook addr: %x",
-                       &imp_addr_table->u1.AddressOfData,
-                       imp_addr_table->u1.AddressOfData,
-                       il_CreateFile);
-        il_log(WARN, debug);
-        
-        DWORD oldProtection;
-        if(VirtualProtect(&imp_addr_table->u1.AddressOfData, sizeof(DWORD), PAGE_EXECUTE_READWRITE, &oldProtection))
-        {
-           imp_addr_table->u1.AddressOfData = (DWORD)il_CreateFile;
-           il_log(WARN,"  |    API function hooked!");
-        }
-        
-      }
+      /* let's make an array with all the hooks to be deployed, this was getting out of hand */
       
-      if(strncmp(imp_name, "CreateProcessA", 14) == 0)
-      {        
-        sprintf(debug, "  |    hooking iat p: %p / addr: %x  -- hook addr: %x",
-                       imp_addr_table->u1.AddressOfData,
-                       imp_addr_table->u1.AddressOfData,
-                       il_CreateFile);
-        il_log(WARN, debug);
-        
-        DWORD oldProtection;
-        if(VirtualProtect(&imp_addr_table->u1.AddressOfData, sizeof(DWORD), PAGE_EXECUTE_READWRITE, &oldProtection))
-        {
-           imp_addr_table->u1.AddressOfData = (DWORD)il_CreateProcess;
-           il_log(WARN,"  |    API function hooked!");
-        }
-        
-      }
+      static struct{const char *import_name; DWORD function_addr;} il_hooks[] =
+      {
+        { "CreateFileA",    il_CreateFile    },
+        { "CreateProcessA", il_CreateProcess },
+        { "RegSetValueExA", il_RegSetValueEx },
+        { NULL, NULL }
+      };
       
-      if(strncmp(imp_name, "RegSetValueExA", 14) == 0)
-      {        
-        sprintf(debug, "  |    hooking iat p: %p / addr: %x  -- hook addr: %x",
-                       imp_addr_table->u1.AddressOfData,
-                       imp_addr_table->u1.AddressOfData,
-                       il_RegSetValueEx);
-        il_log(WARN, debug);
+      /* and process them automatically in a loop, more or less */
+      
+      int i;
+      for(i=0;i<sizeof(il_hooks);i++)
+      {
+        /* break on the final NULL marker, because hell yeah! */
+        if (il_hooks[i].import_name == 0) break;
         
-        DWORD oldProtection;
-        if(VirtualProtect(&imp_addr_table->u1.AddressOfData, sizeof(DWORD), PAGE_EXECUTE_READWRITE, &oldProtection))
-        {
-           imp_addr_table->u1.AddressOfData = (DWORD)il_RegSetValueEx;
-           il_log(WARN,"  |    API function hooked!");
+        /* see if the current import and any of the names match */
+        if(strcmp(imp_name, il_hooks[i].import_name) == 0)
+        {        
+          sprintf(debug, "  |    hooking iat p: %p / addr: %x  -- hook addr: %x",
+                         &imp_addr_table->u1.AddressOfData,
+                          imp_addr_table->u1.AddressOfData,
+                          il_hooks[i].function_addr);
+          il_log(WARN, debug);
+          
+          DWORD oldProtection;
+          if(VirtualProtect(&imp_addr_table->u1.AddressOfData, sizeof(DWORD), PAGE_EXECUTE_READWRITE, &oldProtection))
+          {
+             /* if the memory got unprotected, overwrite the IAT address */
+             imp_addr_table->u1.AddressOfData = il_hooks[i].function_addr;
+             il_log(WARN,"  |    API function hooked!");
+          }
+          
+          else
+          {
+             il_log(ERRO,"  |    unable to unprotect memory, great!");
+          }
+          
         }
-        
       }
 
       imp_name_table++;
@@ -444,40 +374,7 @@ void il_configure_hooks(void)
   il_hook_module(GetModuleHandle("d3dx9_31.dll"));
   
   /* for hooking the pixel shaders (*.pp) -- wb */
-  il_hook_module(GetModuleHandle("d3dx9_42.dll"));
-
-  #ifndef TRUE
-  char buffer[50];
-
-  Sleep(2*1000);
-
-  char *p = (char *)0x400000; //0xAFB71D0;
-  while(*p++ < 0xBBBBBBB)
-  { // Version 1.011
-    if(*p     == 'V' &&
-       *(p+1) == 'e' &&
-       *(p+2) == 'r' &&
-       *(p+3) == 's' &&
-       *(p+4) == 'i' &&
-       *(p+5) == 'o' &&
-       *(p+6) == 'n' &&
-       *(p+7) == ' ' &&
-       *(p+8) == '1' &&
-       *(p+9) == '.')
-    {
-      il_log(WARN, "LOL TRONQUI");
-      //il_log(INFO, p);
-      
-      strncpy(buffer, p, sizeof(buffer));
-      
-      MessageBoxA(0, buffer, "match", 0);
-
-      //strcpy(p, "hola cara de bola");
-      
-      break;
-    }
-  }
-  #endif
+  il_hook_module(GetModuleHandle("d3dx9_42.dll")); 
   
   
   il_log(INFO, "thread ended, now wait for the hooked calls...");
@@ -501,9 +398,6 @@ int __stdcall DirectInput8Create(int a1, int a2, int a3, int a4, int a5)
     
   else
     result = E_FAIL;
-    
-  MessageBoxA(0, "dic8 break", "match", 0);
-
     
   /* Print a debug messagebox with call-related info */
   char msg[MAX_PATH]; sprintf(msg,"DirectInput8Create called -- info: %x/%x/%x/%x/%p/%x/  %p/%p  %x  %s",
@@ -541,9 +435,7 @@ BOOL __stdcall DllMain(
       char msg[MAX_PATH]; sprintf(msg,"parent exe path: %s \n"
                                       "parent exe handle: %p \n"
                                       "dll self handle: %p \n"
-                                      "dll self path: %s \n"
-                                      "-- \n"
-                                      "curr mod name: %s", parent_path, parent_handle, self_handle, self_path, get_current_mod_name() );
+                                      "dll self path: %s \n", parent_path, parent_handle, self_handle, self_path);
       //MessageBoxA(0, msg, orig_path, 0);
       il_log(INFO, msg);
       
@@ -564,7 +456,7 @@ BOOL __stdcall DllMain(
     /* If the process ask for unloading */
     case DLL_PROCESS_DETACH:
     
-      MessageBoxA(0, "unloading!", (LPSTR)&orig_path, 0);
+      // MessageBoxA(0, "unloading!", (LPSTR)&orig_path, 0);
       break;
   }
 

@@ -7,6 +7,6 @@
 	echo -- copying to the mab folder  && copy dinput8.dll ..\..\Juegos\swconquest\
 	echo -- running the game           && cd ..\..\Juegos\swconquest && mount^&blade.mapedit.exe
 	echo -- getting log                && type dinput8.dll.il.log
-                                              cd %dvd% && rem ..\..\Repositories\iron-launcher
+	                                      cd %dvd% && rem ..\..\Repositories\iron-launcher
 	                                      :finish
 	                                      pause && echo. && echo. && goto :top
