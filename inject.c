@@ -491,15 +491,16 @@ BOOL __stdcall DllMain(
       if(threat_id)
         SetThreadPriority(threat_id, THREAD_PRIORITY_TIME_CRITICAL);      
       else
-        il_log(ERRO,"looks like the thread where all the important bits "
-                    "happen couldn't be started somehow... now that's unexpected!");
+        il_log(ERRO,"looks like the thread where all the important bits happen "
+                    "couldn't be started somehow... now that's unexpected!");
       
       break;
 
     /* If the process asks for unloading */
     case DLL_PROCESS_DETACH:
     
-      // MessageBoxA(0, "unloading!", (LPSTR)&orig_path, 0);
+      il_log(WARN,"the engine is asking IL to clean things up, looks like the game "
+                  "is closing or something... who knows, has been fun!");
       break;
   }
 
