@@ -234,11 +234,13 @@ LONG __stdcall il_RegSetValueEx(
     strcat(bik_path, " /P /I2 /J /Z /R /U1 /C /B2");
 
     
-    /* launch the TLD custom video, doesn't blocks the main thread, we'll be background-loading in the meantime */
+    /* launch the TLD custom video, blocking the main thread,
+       we can't be background-loading in the meantime because
+       of the window-ordening ordeal, you can't really stay over a fullscreen surface, so fsck it! */
+
     // Modules\\tld-svn\\Data\\TLDintro.bik /P /I2 /J /Z1 /R /U1 /W-1 /H-1 /C /B2
     #define SEE_MASK_DEFAULT 0x00000000
     #define SEE_MASK_NOASYNC 0x00000100
-    #define SEE_MASK_WAITFORINPUTIDLE 0x02000000
     
     SHELLEXECUTEINFO sei =
     {
@@ -252,41 +254,6 @@ LONG __stdcall il_RegSetValueEx(
     
     HINSTANCE video = ShellExecuteEx(&sei);
     WaitForSingleObject(sei.hProcess, INFINITE);
-    
-    char  dbg[MAX_PATH] = {0};
-    sprintf(dbg, "shellexec returns %d, hprocess is: %d", video, sei.hProcess);
-    MessageBoxA(NULL,dbg,NULL,NULL);
-    
-    Sleep(500);
-    
-    /* keep showing the video even after the game has started, nifty tricks */
-    HWND hWnd = FindWindow("BinkWin", NULL);
-    
-    if(hWnd)
-    {
-      //MessageBoxA(0,"handle found",0,0);
-      SetWindowPos(
-        hWnd,
-        HWND_TOPMOST,
-        0,
-        0,
-        0,
-        0,
-        SWP_SHOWWINDOW|SWP_NOSIZE|SWP_NOMOVE
-      );
-    }
-    
-    
-    
-    // DWORD WINAPI SuspendThread(
-      // main_thread
-    // );
-    
-    // WaitForSingleObject(video, INFINITE);
-    
-    // DWORD WINAPI ResumeThread(
-      // main_thread
-    // );
     
     il_log(WARN, "found and played custom Data\\TLDintro.bik video... enjoy it!");
   }
