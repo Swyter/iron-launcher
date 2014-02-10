@@ -13,13 +13,14 @@
 #define DI_OK 5
 
 /* Global variables */
-HINSTANCE self_handle;
-HINSTANCE orig_handle;
-FARPROC   orig_pointer;
+char  orig_path[MAX_PATH];
+char mod_string[MAX_PATH];
 
-char orig_path[MAX_PATH];
-
-char *get_current_mod_name(void);
+char *get_current_mod_name(void)
+{
+  /* looks fancier with a call, even it it's just a shim after the registry-calling code got removed */
+  return (char*)mod_string;
+}
 
 BOOL FileExists(LPCTSTR szPath)
 {
@@ -202,8 +203,6 @@ BOOL __stdcall il_CreateProcess(
   );
 }
 
-char mod_string[MAX_PATH];
-
 LONG __stdcall il_RegSetValueEx(
   HKEY hKey,
   LPCTSTR lpValueName,
@@ -328,7 +327,7 @@ void il_hook_module(HINSTANCE target_module)
         
         /* see if the current import and any of the names match */
         if(strcmp(imp_name, il_hooks[i].import_name) == 0)
-        {        
+        {
           sprintf(debug, "  |    hooking iat p: %p / addr: %x  -- hook addr: %x",
                          &imp_addr_table->u1.AddressOfData,
                           imp_addr_table->u1.AddressOfData,
@@ -348,6 +347,7 @@ void il_hook_module(HINSTANCE target_module)
              il_log(ERRO,"  |    unable to unprotect memory, great!");
           }
           
+          break;
         }
       }
 
@@ -391,7 +391,8 @@ int __stdcall DirectInput8Create(int a1, int a2, int a3, int a4, int a5)
   GetSystemDirectoryA((LPSTR)orig_path, MAX_PATH); strcat((LPSTR)orig_path, "\\dinput8.dll");
 
   /* Get the native function and proxy it */
-  orig_handle = LoadLibraryA((LPSTR)orig_path);
+  HINSTANCE orig_handle = LoadLibraryA((LPSTR)orig_path);
+  FARPROC   orig_pointer;
   
   if (orig_handle && (orig_pointer = GetProcAddress(orig_handle, "DirectInput8Create")) != 0 )
     result = ((int (__stdcall *)(int, int, int, int, int))orig_pointer)(a1, a2, a3, a4, a5);
@@ -400,8 +401,8 @@ int __stdcall DirectInput8Create(int a1, int a2, int a3, int a4, int a5)
     result = E_FAIL;
     
   /* Print a debug messagebox with call-related info */
-  char msg[MAX_PATH]; sprintf(msg,"DirectInput8Create called -- info: %x/%x/%x/%x/%p/%x/  %p/%p  %x  %s",
-                              result, a1, a2, a3, a4, a4, orig_pointer, orig_handle, self_handle, get_current_mod_name());
+  char msg[MAX_PATH]; sprintf(msg,"DirectInput8Create called -- result: %x params: /%x/%x/%x/%p/%x/  orig entrypoint: %x/ from native dinput8 loaded at %x",
+                              result, a1, a2, a3, a4, a4, orig_pointer, orig_handle);
   
   il_log(WARN, msg);
   return result;
@@ -424,9 +425,8 @@ BOOL __stdcall DllMain(
       TCHAR parent_path [MAX_PATH + 1];
       GetModuleFileName(NULL, (LPSTR)&parent_path, MAX_PATH);
       
-      HMODULE parent_handle = GetModuleHandle(NULL);
-      
-      self_handle = hModule;
+      HINSTANCE parent_handle = GetModuleHandle(NULL);
+      HINSTANCE self_handle   = hModule;
       
       TCHAR self_path [MAX_PATH + 1];
       GetModuleFileName(self_handle, (LPSTR)&self_path, MAX_PATH);
@@ -436,7 +436,6 @@ BOOL __stdcall DllMain(
                                   "    parent exe handle: %p \n"
                                   "    dll self handle: %p \n"
                                   "    dll self path: %s \n", parent_path, parent_handle, self_handle, self_path);
-      //MessageBoxA(0, msg, orig_path, 0);
       il_log(INFO, msg);
       
       /* Do the rest of the stuff in a new thread to avoid blocking the entire program */
@@ -449,11 +448,14 @@ BOOL __stdcall DllMain(
         0//'IL'
       );
       
-      SetThreadPriority(threat_id, THREAD_PRIORITY_TIME_CRITICAL);
+      if(threat_id)
+        SetThreadPriority(threat_id, THREAD_PRIORITY_TIME_CRITICAL);      
+      else
+        il_log(ERRO,"looks like the thread where all the important bits happen couldn't be started somehow... now that's unexpected!");
       
       break;
 
-    /* If the process ask for unloading */
+    /* If the process asks for unloading */
     case DLL_PROCESS_DETACH:
     
       // MessageBoxA(0, "unloading!", (LPSTR)&orig_path, 0);
@@ -462,11 +464,4 @@ BOOL __stdcall DllMain(
 
   /* Signal for Loading/Unloading */
   return (TRUE);
-}
-
-
-
-char *get_current_mod_name(void)
-{    
-  return (char*)mod_string;
 }
