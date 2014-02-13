@@ -215,7 +215,7 @@ LONG __stdcall il_RegSetValueEx(
   if(strstr(lpValueName,"last_module"))
   {
     char debug[400]; sprintf(debug,  "called RegSetValue with value: %s  data: %s", lpValueName, lpData);
-    il_log(ERRO, debug);
+    il_log(WARN, debug);
     
     /* copy the current module name into a local buffer, a bit more permanent */
     strcpy(mod_string, lpData);
@@ -231,31 +231,46 @@ LONG __stdcall il_RegSetValueEx(
   if(FileExists(bik_path))
   {
     /* append the parameters for the TLD video, fullscreen, no borders, respect aspect ratio */
-    strcat(bik_path, " /P /I2 /J /Z /R /U1 /C /B2");
-
+    char bik_params[MAX_PATH] = {0};
+    sprintf(bik_params, "/P /I2 /J /Z /R /U1 /C /B2  \"%s\"", bik_path);
     
     /* launch the TLD custom video, blocking the main thread,
        we can't be background-loading in the meantime because
        of the window-ordening ordeal, you can't really stay over a fullscreen surface, so fsck it! */
 
     // Modules\\tld-svn\\Data\\TLDintro.bik /P /I2 /J /Z1 /R /U1 /W-1 /H-1 /C /B2
-    #define SEE_MASK_DEFAULT 0x00000000
-    #define SEE_MASK_NOASYNC 0x00000100
     
-    SHELLEXECUTEINFO sei =
+    STARTUPINFO si = {0};
+    PROCESS_INFORMATION pi = {0};
+    
+    /* fancy smartypants microsoft requirements */
+    si.cb = sizeof(si);
+    
+    if(CreateProcess(
+       "binkplay.exe",
+        bik_params,
+        NULL,
+        NULL,
+        FALSE,
+        ABOVE_NORMAL_PRIORITY_CLASS,
+        NULL,
+        NULL,
+        &si,
+        &pi))
     {
-      .cbSize       = sizeof(SHELLEXECUTEINFO),
-      .fMask        = SEE_MASK_DEFAULT|SEE_MASK_NOCLOSEPROCESS,
-      .lpVerb       = "open",
-      .lpFile       = "binkplay.exe",
-      .lpParameters = bik_path,
-      .nShow        = SW_SHOW
-    };
+      WaitForSingleObject(pi.hProcess, INFINITE);
+      
+      /* we are good citizens, aren't we? */
+      CloseHandle( pi.hProcess );
+      CloseHandle( pi.hThread );
+      
+      il_log(WARN, "found and played custom Data\\TLDintro.bik video... enjoy it!");
+    }
     
-    HINSTANCE video = ShellExecuteEx(&sei);
-    WaitForSingleObject(sei.hProcess, INFINITE);
-    
-    il_log(WARN, "found and played custom Data\\TLDintro.bik video... enjoy it!");
+    else
+    {
+      il_log(ERRO, "looks like someone has disabled the intro videos by renaming binkplay.exe, good for you!");
+    }
   }
   
   /* --- */
@@ -275,7 +290,7 @@ void il_hook_module(HINSTANCE target_module)
   if (target_module==0)
   {
     il_log(ERRO,"--");
-    il_log(ERRO,"looks like the module doesn't exists, bailing out... :(");
+    il_log(ERRO,"looks like this executable module doesn't exists, bailing out... :(");
     return;
   }
 
@@ -287,7 +302,7 @@ void il_hook_module(HINSTANCE target_module)
 
   if (imp==0)
   {
-    il_log(ERRO,"looks like the module doesn't have an import table, bailing out... :(");
+    il_log(ERRO,"looks like the executable module doesn't have an import table, bailing out... :(");
     return;
   }
   
