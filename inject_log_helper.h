@@ -19,7 +19,7 @@ void il_log(int log_level, char *msg)
     {
       /* a warm welcome is always worthwhile, i don't know why fputs gives problems here */
       fprintf(il_log_file, "--- Welcome to Iron Launcher " DATE_str ".1337\n"
-                           "--- have a nice day!\n\n");
+                           "--- Swyter wishes you a nice day!\n\n");
       fflush(il_log_file);
     }
   }
