@@ -67,6 +67,11 @@ HANDLE __stdcall il_CreateFile(
     { "CommonRes\\core_materials.brf", "Modules\\%s\\Data\\core_materials.brf"  },
     { "CommonRes\\core_ui_meshes.brf", "Modules\\%s\\Data\\core_ui_meshes.brf"  },
     { "CommonRes\\core_pictures.brf",  "Modules\\%s\\Data\\core_pictures.brf"   },
+
+    /* Star Wars Conquest -- unobstrusive font replacement */
+    { "Data\\font_data.xml",           "Modules\\%s\\Font\\FONT_DATA.XML"       },
+    { "Textures\\font.dds",            "Modules\\%s\\Font\\FONT_SWC.dds"        },
+
     { NULL, NULL }
   };
      
